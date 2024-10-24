@@ -144,7 +144,11 @@
 /obj/item/borg/upgrade/thrusters/deactivate(mob/living/silicon/robot/R, user = usr)
 	. = ..()
 	if (.)
-		R.ionpulse = FALSE
+    	for (var/datum/component/anti_magic/anti_magic in BORG.GetComponents(/datum/component/anti_magic))
+    	    if (anti_magic.source == type)
+    	        qdel(anti_magic)
+    	if(HAS_TRAIT_FROM(BORG, HOLYWATER_TRAIT))
+    	    REMOVE_TRAIT(BORG, HOLYWATER_TRAIT))
 
 /obj/item/borg/upgrade/ddrill
 	name = "mining cyborg diamond drill"

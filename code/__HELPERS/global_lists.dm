@@ -75,7 +75,7 @@
 	init_crafting_recipes(GLOB.crafting_recipes)
 
 	init_religion_sects()
-
+	init_random_recipies()
 /// Inits the crafting recipe list, sorting crafting recipe requirements in the process.
 /proc/init_crafting_recipes(list/crafting_recipes)
 	for(var/path in subtypesof(/datum/crafting_recipe))
@@ -166,3 +166,22 @@ GLOBAL_LIST_INIT(WALLITEMS_INVERSE, typecacheof(list(
 	for(var/path in subtypesof(/datum/religion_sect))
 		var/datum/religion_sect/each_sect = new path()
 		GLOB.religion_sect_datums += each_sect
+
+/proc/init_random_recipies()
+	if(!GLOB.chemical_reagents_list)
+		build_chemical_reagent_list()
+	if(!GLOB.chemical_reactions_list)
+		build_chemical_reactions_list()
+	var/reagentOne = pick(GLOB.chemical_reagents_list)
+	var/reagentTwo =  pick(GLOB.chemical_reagents_list)
+	var/reagentThree = pick(GLOB.chemical_reagents_list)
+	var/reagentFour = pick(GLOB.chemical_reagents_list)
+
+	GLOB.randomised_recipe[reagentOne] = rand(1,25)
+	GLOB.randomised_recipe[reagentTwo] = rand(1,25)
+	GLOB.randomised_recipe[reagentThree] = rand(1,25)
+	GLOB.randomised_recipe[reagentFour] = rand(1,25)
+	var/datum/chemical_reaction/life_random/R
+	for(var/t in GLOB.randomised_recipe)
+		R.required_reagents += GLOB.randomised_recipe
+		message_admins("Random chem for secret -- [t]")

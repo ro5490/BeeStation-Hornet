@@ -932,3 +932,17 @@
 	id = /datum/reagent/mutationtoxin/psyphoza
 	results = list(/datum/reagent/mutationtoxin/psyphoza = 5)
 	required_reagents  = list(/datum/reagent/aslimetoxin = 5, /datum/reagent/toxin/amatoxin = 5)
+
+////////////////  Randomised Recipies (Yes I hate myself)
+GLOBAL_LIST_EMPTY(randomised_recipe)
+
+/datum/chemical_reaction/life_random
+	name = "Life (Random)"
+	id = "life_random"
+	required_reagents = list(/datum/reagent/pax = 3)
+	required_temp = 474
+
+/datum/chemical_reaction/life_random/on_reaction(datum/reagents/holder, created_volume)
+	chemical_mob_spawn(holder, rand(1, round(created_volume, 1)), "Life (hostile)") //defaults to HOSTILE_SPAWN
+
+
