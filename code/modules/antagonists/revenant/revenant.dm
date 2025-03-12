@@ -81,6 +81,8 @@
 	AddSpell(new /obj/effect/proc_holder/spell/aoe_turf/revenant/overload(null))
 	AddSpell(new /obj/effect/proc_holder/spell/aoe_turf/revenant/blight(null))
 	AddSpell(new /obj/effect/proc_holder/spell/aoe_turf/revenant/malfunction(null))
+	AddSpell(new /obj/effect/proc_holder/spell/aoe_turf/revenant/spook/(null))
+	AddSpell(new /obj/effect/proc_holder/spell/aoe_turf/revenant/blood_writing/(null))
 	check_rev_teleport() // they're spawned in non-station for some reason...
 	random_revenant_name()
 	AddComponent(/datum/component/tracking_beacon, "ghost", null, null, TRUE, "#9e4d91", TRUE, TRUE, "#490066")

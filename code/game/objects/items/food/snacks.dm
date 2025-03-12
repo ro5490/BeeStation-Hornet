@@ -266,3 +266,22 @@
 	food_flags = FOOD_FINGER_FOOD
 	w_class = WEIGHT_CLASS_SMALL
 	crafting_complexity = FOOD_COMPLEXITY_1
+
+
+/obj/item/food/ectoplasmicgoo //Revenant and Ghost Ectoplasm
+	name = "ectoplasmic goo"
+	desc = "A luminescent blob of what scientists refer to as \"ghost goo.\""
+	icon = 'icons/obj/halloween_items.dmi'
+	icon_state = "ectoplasm"
+	food_reagents = list(
+		/datum/reagent/consumable/ectoplasmicgoo = 10
+	)
+	tastes = list("ghostly essence" = 1, "regret" = 1)
+	foodtypes = TOXIC | GROSS
+	junkiness = 50
+	w_class = WEIGHT_CLASS_SMALL
+	crafting_complexity = FOOD_COMPLEXITY_2
+
+/obj/item/food/ectoplasmicgoo/Initialize(mapload)
+	. = ..()
+	flick("ectoplasm-a", src)

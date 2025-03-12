@@ -532,3 +532,360 @@
 		tray.pestlevel = rand(8, 10)
 		tray.weedlevel = rand(8, 10)
 		tray.toxic = rand(45, 55)
+
+// -------------------------------------------
+// ------------- Spook Ability ---------------
+// -------------------------------------------
+
+/obj/effect/proc_holder/spell/aoe_turf/revenant/spook
+	name = "Spook"
+	desc = "Cause freaky, weird, creepy, or spooky stuff to happen in an area around you."
+	charge_max = 200
+	reveal = 80 //How long it reveals the revenant in deciseconds
+	stun = 10
+	cast_amount = 30
+	unlock_amount = 10
+	action_icon_state = "spook"
+	var/static/list/effects = list("Flip light switches" = 1, "Burn out lights" = 2, "Create smoke" = 3, "Create ectoplasm" = 4, "Sap APC" = 5, "Open doors, lockers, crates" = 6, "Random" = 7)
+
+/obj/effect/proc_holder/spell/aoe_turf/revenant/spook/cast(list/targets, mob/living/simple_animal/revenant/user = usr)
+	if(attempt_cast(user))
+		var/effect_text = input(user, "Choose a spooky effect:", "Spook") as null|anything in effects
+		if(!effect_text)
+			return
+		var/effect = effects[effect_text] // Convert text to the assigned numerical value
+		INVOKE_ASYNC(src, PROC_REF(do_spook_ability), effect, user)
+
+/obj/effect/proc_holder/spell/aoe_turf/revenant/spook/proc/do_spook_ability(var/effect, mob/user)
+	if (effect == 7) // "Random" effect
+		effect = rand(1, 6) // Randomly select one of the other effects
+
+	switch(effect)
+		if (1) // Flip light switches
+			to_chat(user, span_revennotice("You flip some light switches near your location!!"))
+			for (var/obj/machinery/light_switch/L in circleview(user, 10))
+				L.interact(user)
+			return
+		if (2) // Burn out lights
+			to_chat(user, span_revennotice("You cause a few lights to burn out near your location!."))
+			var/c_prob = 100
+			for (var/obj/machinery/light/L in circleview(user, 10))
+				if (L.status == 2 || L.status == 1)
+					continue
+				if (prob(c_prob))
+					L.break_light_tube()
+					c_prob *= 0.5
+			return
+		if (3) // Create smoke
+			to_chat(user, span_revennotice("Smoke rises in your location."))
+			var/turf/T = get_turf(user)
+			if (T && isturf(T))
+				var/datum/effect_system/smoke_spread/bad/smoke = new
+				smoke.set_up(15, T)
+				smoke.start()
+			return
+		if (4) // Create ectoplasm
+			to_chat(user, span_revennotice("Matter from your realm appears near your location!"))
+			var/c_prob = 100
+			for (var/turf/T in circleview(user, 7))
+				if (prob(c_prob))
+					new /obj/item/food/ectoplasmicgoo(T)
+					c_prob *= 0.70
+			return
+		if (5) // Sap APC
+			var/sapped_amt = 1250
+			var/obj/machinery/power/apc/apc = locate() in get_area(user)
+			if (!apc)
+				to_chat(user, span_revenwarning("Power sap failed: local APC not found."))
+				return
+			var/obj/item/stock_parts/cell/cell = apc.cell
+			if (cell)
+				to_chat(user, span_revennotice("You sap the power of the chamber's power source."))
+				apc.visible_message(span_warning("<b>\The [apc] suddenly flares brightly and begins to spark!"))
+				var/datum/effect_system/spark_spread/s = new /datum/effect_system/spark_spread
+				s.set_up(4, 0, apc)
+				s.start()
+				new /obj/effect/temp_visual/revenant(get_turf(apc))
+				cell.use(sapped_amt)
+				apc.Beam(user,icon_state="purple_lightning", time = 3)
+				return
+			else
+				to_chat(user, span_revenwarning("Power sap failed: local APC has no power cell."))
+				return
+		if (6) // Open doors, lockers, crates
+			to_chat(user, span_revennotice("Crates, lockers, and doors mysteriously open and close in your area!"))
+			var/c_prob = 100
+			for(var/obj/machinery/door/G in circleview(user, 7))
+				if (prob(c_prob))
+					c_prob *= 0.4
+					addtimer(CALLBACK(G, G.density ? /obj/machinery/door.proc/open : /obj/machinery/door.proc/close), 1)
+			c_prob = 100
+			for(var/obj/structure/closet/F in circleview(user, 7))
+				if (prob(c_prob))
+					c_prob *= 0.4
+					addtimer(CALLBACK(F, F.opened ? /obj/structure/closet.proc/close : /obj/structure/closet.proc/open), 1)
+			return
+
+
+
+// -------------------------------------------
+// ------------- BloodWriting Ability --------
+// -------------------------------------------
+
+#define RANDOM_GRAFFITI "Random Graffiti"
+#define RANDOM_LETTER "Random Letter"
+#define RANDOM_PUNCTUATION "Random Punctuation"
+#define RANDOM_NUMBER "Random Number"
+#define RANDOM_SYMBOL "Random Symbol"
+#define RANDOM_DRAWING "Random Drawing"
+#define RANDOM_ORIENTED "Random Oriented"
+#define RANDOM_RUNE "Random Rune"
+#define RANDOM_ANY "Random Anything"
+
+#define PAINT_NORMAL	1
+#define PAINT_LARGE_HORIZONTAL	2
+#define PAINT_LARGE_HORIZONTAL_ICON	'icons/effects/96x32.dmi'
+
+/obj/effect/proc_holder/spell/aoe_turf/revenant/blood_writing
+	name = "Blood Writing"
+	desc = "Write a spooky character, symbol, or drawing on the ground using blood."
+	charge_max = 50
+	range = 1
+	cast_amount = 5
+	unlock_amount = 10
+	action_icon = 'icons/hud/actions/actions_revenant.dmi'
+	action_icon_state = "blood_writing"
+	action_background_icon_state = "bg_revenant"
+	var/in_use = FALSE
+	var/datum/revenant_writing/writingdatum
+
+/datum/revenant_writing
+	var/name = "revenant writing"
+	var/paint_color = "#9b0000" // Blood color
+	var/drawtype
+	var/text_buffer = ""
+	var/static/list/graffiti = list("amyjon","face","matt","revolution","engie","guy","end","dwarf","uboa","body","cyka","star","poseur tag","prolizard","antilizard")
+	var/static/list/symbols = list("danger","firedanger","electricdanger","biohazard","radiation","safe","evac","space","med","trade","shop","food","peace","like","skull","nay","heart","credit")
+	var/static/list/drawings = list("smallbrush","brush","largebrush","splatter","snake","stickman","carp","ghost","clown","taser","disk","fireaxe","toolbox","corgi","cat","toilet","blueprint","beepsky","scroll","bottle","shotgun")
+	var/static/list/oriented = list("arrow","line","thinline","shortline","body","chevron","footprint","clawprint","pawprint") // These turn to face the same way as the drawer
+	var/static/list/runes = list("rune1","rune2","rune3","rune4","rune5","rune6")
+	var/static/list/randoms = list(RANDOM_ANY, RANDOM_RUNE, RANDOM_ORIENTED,
+		RANDOM_NUMBER, RANDOM_GRAFFITI, RANDOM_LETTER, RANDOM_SYMBOL, RANDOM_PUNCTUATION, RANDOM_DRAWING)
+	var/static/list/graffiti_large_h = list("secborg", "paint")
+	var/static/list/all_drawables = graffiti + symbols + drawings + oriented + runes + graffiti_large_h
+	var/paint_mode = PAINT_NORMAL
+	var/mob/living/simple_animal/revenant/revenant
+
+/datum/revenant_writing/ui_host(mob/user)
+	return revenant
+
+/obj/effect/proc_holder/spell/aoe_turf/revenant/blood_writing/cast(list/targets, mob/living/simple_animal/revenant/user = usr)
+	if(attempt_cast(user))
+		to_chat(user, span_notice("Opening Blood Writing UI...")) // Debug message, Remove before final merge
+		writingdatum = new /datum/revenant_writing(user)
+		writingdatum.start(user)// Open the UI when the spell is cast
+
+/datum/revenant_writing/proc/start(mob/user)
+	ui_interact(user)
+
+/datum/revenant_writing/proc/isValidSurface(surface)
+	return istype(surface, /turf/open/floor)
+
+/datum/revenant_writing/ui_state(mob/user)
+	return GLOB.self_state
+
+/datum/revenant_writing/ui_interact(mob/user, datum/tgui/ui)
+	to_chat(user, span_notice("Attempting to open UI...")) // Debug message, Remove before final merge
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		to_chat(user, span_notice("Creating new UI...")) // Debug message, Remove before final merge
+		ui = new(user, src, "BloodWriting")
+		ui.open()
+	else
+		to_chat(user, span_notice("Updating existing UI...")) // Debug message, Remove before final merge
+	return TRUE
+
+/datum/revenant_writing/proc/staticDrawables()
+	. = list()
+
+	var/list/g_items = list()
+	. += list(list("name" = "Graffiti", "items" = g_items))
+	for(var/g in graffiti)
+		g_items += list(list("item" = g))
+
+	var/list/glh_items = list()
+	. += list(list("name" = "Graffiti Large Horizontal", "items" = glh_items))
+	for(var/glh in graffiti_large_h)
+		glh_items += list(list("item" = glh))
+
+	var/list/S_items = list()
+	. += list(list("name" = "Symbols", "items" = S_items))
+	for(var/S in symbols)
+		S_items += list(list("item" = S))
+
+	var/list/D_items = list()
+	. += list(list("name" = "Drawings", "items" = D_items))
+	for(var/D in drawings)
+		D_items += list(list("item" = D))
+
+	var/list/O_items = list()
+	. += list(list(name = "Oriented", "items" = O_items))
+	for(var/O in oriented)
+		O_items += list(list("item" = O))
+
+	var/list/R_items = list()
+	. += list(list(name = "Runes", "items" = R_items))
+	for(var/R in runes)
+		R_items += list(list("item" = R))
+
+	var/list/rand_items = list()
+	. += list(list(name = "Random", "items" = rand_items))
+	for(var/i in randoms)
+		rand_items += list(list("item" = i))
+
+/datum/revenant_writing/ui_data(mob/user)
+	var/static/list/crayon_drawables
+
+	if (!crayon_drawables)
+		crayon_drawables = staticDrawables()
+
+	. = list()
+	.["drawables"] = crayon_drawables
+	.["selected_stencil"] = drawtype
+	.["text_buffer"] = text_buffer
+	return .
+
+/datum/revenant_writing/ui_act(action, list/params)
+	if(..())
+		return
+	switch(action)
+		if("select_stencil")
+			var/stencil = params["item"]
+			if(stencil in (all_drawables + randoms))
+				drawtype = stencil
+				. = TRUE
+				text_buffer = ""
+			if(stencil in graffiti_large_h)
+				paint_mode = PAINT_LARGE_HORIZONTAL
+				text_buffer = ""
+			else
+				paint_mode = PAINT_NORMAL
+		if("enter_text")
+			var/txt = stripped_input(usr,"Choose what to write.",
+				"Scribbles",default = text_buffer)
+			text_buffer = crayon_text_strip(txt)
+			. = TRUE
+			paint_mode = PAINT_NORMAL
+			drawtype = "a"
+	return TRUE
+
+/datum/revenant_writing/proc/crayon_text_strip(text)
+	var/static/regex/crayon_r = new /regex(@"[^\w!?,.=%#&+\/\-]")
+	return replacetext(LOWER_TEXT(text), crayon_r, "")
+
+/datum/revenant_writing/proc/drawblood(atom/target, mob/user, params)
+	var/static/list/punctuation = list("!","?",".",",","/","+","-","=","%","#","&")
+
+	if(istype(target, /obj/effect/decal))
+		target = target.loc
+
+	if(!isValidSurface(target))
+		return
+
+	var/drawing = drawtype
+	switch(drawtype)
+		if(RANDOM_LETTER)
+			drawing = ascii2text(rand(97, 122)) // a-z
+		if(RANDOM_PUNCTUATION)
+			drawing = pick(punctuation)
+		if(RANDOM_SYMBOL)
+			drawing = pick(symbols)
+		if(RANDOM_DRAWING)
+			drawing = pick(drawings)
+		if(RANDOM_GRAFFITI)
+			drawing = pick(graffiti)
+		if(RANDOM_RUNE)
+			drawing = pick(runes)
+		if(RANDOM_ORIENTED)
+			drawing = pick(oriented)
+		if(RANDOM_NUMBER)
+			drawing = ascii2text(rand(48, 57)) // 0-9
+		if(RANDOM_ANY)
+			drawing = pick(all_drawables)
+
+	var/temp = "rune"
+	if(is_alpha(drawing))
+		temp = "letter"
+	else if(is_digit(drawing))
+		temp = "number"
+	else if(drawing in punctuation)
+		temp = "punctuation mark"
+	else if(drawing in symbols)
+		temp = "symbol"
+	else if(drawing in drawings)
+		temp = "drawing"
+	else if(drawing in (graffiti | oriented))
+		temp = "graffiti"
+
+	var/graf_rot
+	if(drawing in oriented)
+		switch(user.dir)
+			if(EAST)
+				graf_rot = 90
+			if(SOUTH)
+				graf_rot = 180
+			if(WEST)
+				graf_rot = 270
+			else
+				graf_rot = 0
+
+	var/list/modifiers = params2list(params)
+	var/clickx
+	var/clicky
+
+	if(LAZYACCESS(modifiers, ICON_X) && LAZYACCESS(modifiers, ICON_Y))
+		clickx = clamp(text2num(LAZYACCESS(modifiers, ICON_X)) - 16, -(world.icon_size/2), world.icon_size/2)
+		clicky = clamp(text2num(LAZYACCESS(modifiers, ICON_Y)) - 16, -(world.icon_size/2), world.icon_size/2)
+
+	if(length(text_buffer))
+		drawing = text_buffer[1]
+
+	var/list/turf/affected_turfs = list()
+
+	switch(paint_mode)
+		if(PAINT_NORMAL)
+			var/obj/effect/decal/cleanable/blood/writing/W = new(target, paint_color, drawing, temp, graf_rot)
+			W.add_hiddenprint(user)
+			W.pixel_x = clickx
+			W.pixel_y = clicky
+			affected_turfs += target
+		if(PAINT_LARGE_HORIZONTAL)
+			var/turf/left = locate(target.x-1,target.y,target.z)
+			var/turf/right = locate(target.x+1,target.y,target.z)
+			if(isValidSurface(left) && isValidSurface(right))
+				var/obj/effect/decal/cleanable/blood/writing/W = new(left, paint_color, drawing, temp, graf_rot, PAINT_LARGE_HORIZONTAL_ICON)
+				W.add_hiddenprint(user)
+				affected_turfs += left
+				affected_turfs += right
+				affected_turfs += target
+			else
+				to_chat(user, span_warning("There isn't enough space to paint!"))
+				return
+
+	if(length(text_buffer) > 1)
+		text_buffer = copytext(text_buffer, length(text_buffer[1]) + 1)
+		SStgui.update_uis(src)
+
+#undef RANDOM_GRAFFITI
+#undef RANDOM_LETTER
+#undef RANDOM_PUNCTUATION
+#undef RANDOM_SYMBOL
+#undef RANDOM_DRAWING
+#undef RANDOM_NUMBER
+#undef RANDOM_ORIENTED
+#undef RANDOM_RUNE
+#undef RANDOM_ANY
+
+#undef PAINT_NORMAL
+#undef PAINT_LARGE_HORIZONTAL
+#undef PAINT_LARGE_HORIZONTAL_ICON

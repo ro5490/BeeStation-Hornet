@@ -213,3 +213,16 @@ CREATION_TEST_IGNORE_SUBTYPES(/obj/effect/decal/cleanable/vomit/old)
 	icon = 'icons/effects/blood.dmi'
 	icon_state = "xfloor1"
 	random_icon_states = list("xfloor1", "xfloor2", "xfloor3", "xfloor4", "xfloor5", "xfloor6", "xfloor7")
+
+
+/obj/effect/decal/cleanable/blood/writing //Revenant Blood Writing
+	name = "bloody scrawl"
+	desc = "It's red and gooey. Perhaps it's the chef's cooking?"
+	icon = 'icons/effects/crayondecal.dmi'
+	icon_state = "rune1"
+	gender = NEUTER
+	plane = GAME_PLANE //makes the graffiti visible over a wall.
+	mergeable_decal = FALSE
+	var/do_icon_rotate = TRUE
+	var/rotation = 0
+	var/paint_colour = "#9b0000"

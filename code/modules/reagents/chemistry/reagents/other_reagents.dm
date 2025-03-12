@@ -2286,3 +2286,37 @@ Basically, we fill the time between now and 2s from now with hands based off the
 		M.adjustOxyLoss(-5*REM, 0)
 		. = 1
 	M.losebreath = 0
+
+
+/datum/reagent/consumable/ectoplasmicgoo
+	name = "Ectoplasmic goo"
+	description = "A bizarre gelatinous substance supposedly derived from ghosts."
+	reagent_state = LIQUID
+	color = "#B3E197" // RGB: 179, 225, 151
+	taste_description = "ghostly essence and regret"
+	metabolization_rate = 0.2 * REAGENTS_METABOLISM
+	overdose_threshold = 20
+	chem_flags = CHEMICAL_NOT_SYNTH
+
+/datum/reagent/consumable/ectoplasmicgoo/on_mob_life(mob/living/carbon/M, delta_time, times_fired)
+	. = ..()
+	if(holder.get_reagent_amount(src.type) >= 10 && prob(8))
+		var/message = pick(
+			"You shudder as if cold...",
+			"You feel something gliding across your back...",
+			"Your eyes twitch, you feel like something you can't see is here...",
+			"You notice something moving out of the corner of your eye, but nothing is there...",
+			"You feel uneasy.",
+			"You've got the heebie-jeebies.")
+		to_chat(M, span_warning("[message]"))
+		if(prob(1))
+			for(var/obj/W in orange(5, M))
+				if(prob(25) && !W.anchored)
+					step_rand(W)
+
+/datum/reagent/consumable/ectoplasmicgoo/expose_turf(turf/T, reac_volume)
+	if(!istype(T))
+		return
+	if(reac_volume < 10)
+		return
+	new /obj/item/food/ectoplasmicgoo(T)
